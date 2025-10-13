@@ -1,17 +1,18 @@
-# Use official Python slim image
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Copy requirements and install Python dependencies
+# Install system packages required to build mysqlclient
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    default-libmysqlclient-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend source code
 COPY . .
 
-# Expose Flask port
 EXPOSE 5000
 
-# Run the Flask app
 CMD ["python", "app.py"]
