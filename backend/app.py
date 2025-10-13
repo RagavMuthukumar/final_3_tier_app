@@ -1,13 +1,15 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, request, jsonify
 from flask_mysqldb import MySQL
 import MySQLdb.cursors
+from flask_cors import CORS
 import os
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key'  # Change this to a strong secret key
+CORS(app)  # Enable CORS for all routes
 
-# MySQL configuration from environment variables or defaults
-app.config['MYSQL_HOST'] = os.getenv('MYSQL_HOST', 'localhost')
+app.secret_key = os.getenv('SECRET_KEY', 'supersecretkey')
+
+app.config['MYSQL_HOST'] = os.getenv('MYSQL_HOST', 'db')
 app.config['MYSQL_USER'] = os.getenv('MYSQL_USER', 'root')
 app.config['MYSQL_PASSWORD'] = os.getenv('MYSQL_PASSWORD', 'root')
 app.config['MYSQL_DB'] = os.getenv('MYSQL_DB', 'flasklogin')
@@ -15,57 +17,35 @@ app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 
 mysql = MySQL(app)
 
-# Route for login page (index.html)
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/login', methods=['POST'])
 def login():
-    msg = ''
-    if request.method == 'POST' and 'email' in request.form and 'password' in request.form:
-        email = request.form['email']
-        password = request.form['password']
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        cursor.execute('SELECT * FROM accounts WHERE email = %s AND password = %s', (email, password))
-        account = cursor.fetchone()
-        if account:
-            session['loggedin'] = True
-            session['id'] = account['id']
-            session['email'] = account['email']
-            return redirect(url_for('dashboard'))
-        else:
-            msg = 'Incorrect email or password!'
-    return render_template('index.html', msg=msg)
+    data = request.get_json() or {}
+    email = data.get('email')
+    password = data.get('password')
+    if not email or not password:
+        return jsonify({"message": "Email and password are required"}), 400
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute('SELECT * FROM accounts WHERE email = %s AND password = %s', (email, password))
+    account = cursor.fetchone()
+    if account:
+        return jsonify({"message": "Login successful", "email": account['email']}), 200
+    return jsonify({"message": "Invalid credentials"}), 401
 
-# Route for registration page (register.html)
-@app.route('/register', methods=['GET', 'POST'])
+@app.route('/register', methods=['POST'])
 def register():
-    msg = ''
-    if request.method == 'POST' and 'email' in request.form and 'password' in request.form:
-        email = request.form['email']
-        password = request.form['password']
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        cursor.execute('SELECT * FROM accounts WHERE email = %s', (email,))
-        account = cursor.fetchone()
-        if account:
-            msg = 'Account already exists!'
-        elif not email or not password:
-            msg = 'Please fill out the form!'
-        else:
-            cursor.execute('INSERT INTO accounts (email, password) VALUES (%s, %s)', (email, password))
-            mysql.connection.commit()
-            msg = 'You have successfully registered!'
-    return render_template('register.html', msg=msg)
-
-# Dashboard route after login
-@app.route('/dashboard')
-def dashboard():
-    if 'loggedin' in session:
-        return f"Welcome, {session['email']}!<br><a href='/logout'>Logout</a>"
-    return redirect(url_for('login'))
-
-# Logout route
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect(url_for('login'))
+    data = request.get_json() or {}
+    email = data.get('email')
+    password = data.get('password')
+    if not email or not password:
+        return jsonify({"message": "Email and password are required"}), 400
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute('SELECT * FROM accounts WHERE email = %s', (email,))
+    account = cursor.fetchone()
+    if account:
+        return jsonify({"message": "Account already exists"}), 409
+    cursor.execute('INSERT INTO accounts(email, password) VALUES (%s, %s)', (email, password))
+    mysql.connection.commit()
+    return jsonify({"message": "Registered successfully"}), 201
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=True)
+    app.run(host='0.0.0.0', port=5000)
