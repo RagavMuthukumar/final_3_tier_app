@@ -1,18 +1,13 @@
-FROM python:3.11-slim
+FROM python:3.10-alpine
+
+RUN apk add --no-cache \
+    gcc \
+    musl-dev \
+    mariadb-connector-c-dev
 
 WORKDIR /app
-
-# Install system packages required to build mysqlclient
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    default-libmysqlclient-dev \
-    && rm -rf /var/lib/apt/lists/*
-
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-
 COPY . .
-
 EXPOSE 5000
-
 CMD ["python", "app.py"]
