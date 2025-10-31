@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: mysql
-          image: your-dockerhub-username/mysql:latest   # 👈 your own MySQL image
+          image: ragavmuthukumar/mysql:latest   # 👈 your own MySQL image
           ports:
             - containerPort: 3306
           env:
